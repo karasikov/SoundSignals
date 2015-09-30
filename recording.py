@@ -6,7 +6,7 @@ import wave
 import time
 import numpy as np
 
-CHUNK_SIZE = 50
+CHUNK_SIZE = 10
 FORMAT = pyaudio.paInt16
 RATE = 44100
 
@@ -39,9 +39,19 @@ def record(duration=4.):
     it without getting chopped off.
     """
     p = pyaudio.PyAudio()
-    stream = p.open(format=FORMAT, channels=1, rate=RATE,
+    stream = p.open(format=FORMAT,
+                    channels=1,
+                    rate=RATE,
                     input=True, output=True,
                     frames_per_buffer=CHUNK_SIZE)
+
+    src_latency = 1000.0 * stream.get_input_latency()
+    buffer_latency = 1000.0 * CHUNK_SIZE / RATE
+    dst_latency = 1000.0 * stream.get_output_latency()
+    total_latency = buffer_latency + dst_latency + src_latency
+
+    print("Expected latency: %.2fms (%0.1f, %0.1f, %0.1f)" % (
+            total_latency, src_latency, buffer_latency, dst_latency))
 
     recorded_signal = np.array([], dtype=np.int16)
 
@@ -55,7 +65,7 @@ def record(duration=4.):
         sending_chunk = sending_chunk.clip(-32000, 32000)
         stream.write(sending_chunk.tostring())
 
-    print("recording lasted " + str(time.time() - start) + " sec")
+    print("recording lasted {:.4}sec".format(time.time() - start))
 
     sample_width = p.get_sample_size(FORMAT)
     stream.stop_stream()
